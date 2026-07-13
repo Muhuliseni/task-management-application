@@ -22,6 +22,14 @@ import {
 
     getHighPriorityTasks,
 
+    cloneTaskList,
+
+    duplicateTaskWithChanges,
+
+    splitFirstTask,
+
+    getManagerTaskCount,
+
     resetTaskManager
 
 } from "./app.js";
@@ -397,6 +405,59 @@ describe("Error Handling", () => {
         );
 
         expect(result).toBeNull();
+
+    });
+
+});
+
+describe("Spread and Destructuring", () => {
+
+    beforeEach(() => {
+        resetTaskManager();
+    });
+
+    test("cloneTaskList should return a shallow copy using spread", () => {
+
+        addTask("Task 1", "Description", 2);
+
+        const clone = cloneTaskList(taskList);
+
+        expect(clone).toEqual(taskList);
+        expect(clone).not.toBe(taskList);
+
+    });
+
+    test("duplicateTaskWithChanges should merge properties using object spread", () => {
+
+        const task = addTask("Task 1", "Description", 2);
+
+        const updated = duplicateTaskWithChanges(task, { priority: 5 });
+
+        expect(updated.title).toBe("Task 1");
+        expect(updated.priority).toBe(5);
+
+    });
+
+    test("splitFirstTask should destructure the first task and the rest", () => {
+
+        const task1 = addTask("Task 1", "Description", 1);
+        const task2 = addTask("Task 2", "Description", 2);
+
+        const { firstTask, remainingTasks } = splitFirstTask(taskList);
+
+        expect(firstTask).toBe(task1);
+        expect(remainingTasks).toEqual([task2]);
+
+    });
+
+    test("getManagerTaskCount should destructure its parameter", () => {
+
+        addTask("Task 1", "Description", 1);
+        addTask("Task 2", "Description", 2);
+
+        expect(
+            getManagerTaskCount({ tasks: taskList })
+        ).toBe(2);
 
     });
 

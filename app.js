@@ -361,6 +361,76 @@ function getHighPriorityTasks(minPriority) {
     );
 
 }
+/**
+ * Returns a shallow copy of a task list.
+ * Demonstrates the array spread operator.
+ * @param {Task[]} tasks
+ * @returns {Task[]}
+ */
+function cloneTaskList(tasks) {
+
+    if (!Array.isArray(tasks)) {
+        throw new TypeError("cloneTaskList expects an array.");
+    }
+
+    return [...tasks];
+
+}
+
+/**
+ * Returns a new task-like object with overridden properties.
+ * Demonstrates the object spread operator.
+ * @param {Task} task
+ * @param {Object} overrides
+ * @returns {Object}
+ */
+function duplicateTaskWithChanges(task, overrides = {}) {
+
+    if (!task || typeof task !== "object") {
+        throw new TypeError("A valid task object is required.");
+    }
+
+    return {
+        ...task,
+        ...overrides
+    };
+
+}
+
+/**
+ * Splits a task list into its first task and the rest.
+ * Demonstrates array destructuring with a rest pattern.
+ * @param {Task[]} tasks
+ * @returns {{ firstTask: Task|undefined, remainingTasks: Task[] }}
+ */
+function splitFirstTask(tasks) {
+
+    if (!Array.isArray(tasks)) {
+        throw new TypeError("splitFirstTask expects an array.");
+    }
+
+    const [firstTask, ...remainingTasks] = tasks;
+
+    return { firstTask, remainingTasks };
+
+}
+
+/**
+ * Returns a task manager summary using object destructuring
+ * on the function parameter itself.
+ * @param {{ tasks: Task[] }} manager
+ * @returns {number}
+ */
+function getManagerTaskCount({ tasks }) {
+
+    if (!Array.isArray(tasks)) {
+        throw new TypeError("Expected an object with a tasks array.");
+    }
+
+    return tasks.length;
+
+}
+
 /*==================================================
   Task Manager Object
 ==================================================*/
@@ -513,6 +583,14 @@ export {
     calculateAveragePriority,
 
     getHighPriorityTasks,
+
+    cloneTaskList,
+
+    duplicateTaskWithChanges,
+
+    splitFirstTask,
+
+    getManagerTaskCount,
 
     TaskManager,
 
