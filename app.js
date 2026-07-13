@@ -463,6 +463,25 @@ function resetTaskManager() {
 
 }
 
+/**
+ * Syncs taskCounter so it is never lower than an existing
+ * task's id. Used after restoring tasks from storage, where
+ * taskCounter would otherwise reset to 0 on every page load
+ * and could hand out a duplicate id to the next new task.
+ * @param {number} minimumValue
+ */
+function setTaskCounter(minimumValue) {
+
+    if (typeof minimumValue !== "number" || Number.isNaN(minimumValue)) {
+        return;
+    }
+
+    if (minimumValue > taskCounter) {
+        taskCounter = minimumValue;
+    }
+
+}
+
 /*==================================================
   Module Exports
 ==================================================*/
@@ -497,6 +516,8 @@ export {
 
     TaskManager,
 
-    resetTaskManager
+    resetTaskManager,
+
+    setTaskCounter
 
 };

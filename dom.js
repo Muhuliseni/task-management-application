@@ -3,7 +3,8 @@
 import {
     taskList,
     addTask,
-    Task
+    Task,
+    setTaskCounter
 } from "./app.js";
 
 import {
@@ -43,6 +44,8 @@ document.addEventListener(
         loadTasks();
 
         displayTasks();
+
+        updateStatistics();
 
         const container = document.getElementById("task-list");
 
@@ -132,6 +135,7 @@ function handleAddTask(event) {
 
     // Refresh UI
     displayTasks();
+    updateStatistics();
 
     // Clear form
     titleInput.value = "";
@@ -221,6 +225,32 @@ function displayTasks() {
 
 }
 /**
+ * Updates the task statistics section in the DOM.
+ * Uses TaskManager's functional methods to compute values.
+ */
+function updateStatistics() {
+
+    const totalEl = document.getElementById("total-tasks");
+    const completedEl = document.getElementById("completed-tasks");
+    const pendingEl = document.getElementById("pending-tasks");
+
+    // Null checks before touching the DOM
+    if (!totalEl || !completedEl || !pendingEl) {
+        console.error("Statistics elements not found.");
+        return;
+    }
+
+    const total = taskList.length;
+    const completed = taskList.filter(task => task.completed).length;
+    const pending = total - completed;
+
+    totalEl.textContent = total;
+    completedEl.textContent = completed;
+    pendingEl.textContent = pending;
+
+}
+
+/**
  * Handles task button clicks using event delegation.
  * @param {Event} event
  */
@@ -254,6 +284,7 @@ function handleTaskClick(event) {
         saveToStorage(taskList);
 
         displayTasks();
+        updateStatistics();
 
         return;
 
@@ -273,6 +304,7 @@ function handleTaskClick(event) {
             saveToStorage(taskList);
 
             displayTasks();
+            updateStatistics();
 
         }
 
@@ -323,5 +355,14 @@ function loadTasks() {
         taskList.push(restoredTask);
 
     });
+
+    // Prevent duplicate ids: make sure the counter is at least
+    // as high as the largest id we just restored
+    const highestId = taskList.reduce(
+        (max, task) => Math.max(max, task.id),
+        0
+    );
+
+    setTaskCounter(highestId);
 
 }

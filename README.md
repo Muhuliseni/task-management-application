@@ -2,9 +2,7 @@
 
 ## Overview
 
-The Task Management Application is a modern JavaScript application that allows users to create, manage, update, and organize tasks through an interactive web interface.
-
-The project demonstrates modern JavaScript (ES6+) concepts including object-oriented programming, DOM manipulation, event handling, recursion, functional programming, local storage, JSON processing, and unit testing using Jest.
+A modern JavaScript task management app demonstrating OOP, DOM manipulation, event handling, recursion, functional programming, Local Storage, JSON processing, and Jest unit testing.
 
 ---
 
@@ -36,41 +34,11 @@ The project demonstrates modern JavaScript (ES6+) concepts including object-orie
 
 ## JavaScript Concepts Demonstrated
 
-### Object-Oriented Programming
-
-- Classes
-- Constructors
-- Inheritance
-- Encapsulation
-
-### ES6 Features
-
-- let and const
-- Arrow functions
-- Template literals
-- Destructuring
-- Spread operator
-- Modules
-- Default parameters
-
-### Functional Programming
-
-- map()
-- filter()
-- reduce()
-
-### Algorithms
-
-- Recursion
-- Searching
-- Array manipulation
-
-### Browser APIs
-
-- DOM Manipulation
-- Event Listeners
-- Local Storage
-- JSON
+- **OOP:** classes, constructors, inheritance, encapsulation
+- **ES6+:** let/const, arrow functions, template literals, destructuring, spread/rest, modules, default parameters
+- **Functional:** map(), filter(), reduce()
+- **Algorithms:** recursion, searching, array manipulation
+- **Browser APIs:** DOM manipulation, event listeners, Local Storage, JSON
 
 ---
 
@@ -91,127 +59,78 @@ project-folder/
 
 ---
 
-## Installation
-
-Clone the repository.
+## Installation & Running
 
 ```bash
 git clone <repository-url>
-```
-
-Navigate into the project.
-
-```bash
 cd task-manager
-```
-
-Install dependencies.
-
-```bash
 npm install
 ```
 
----
-
-## Running the Project
-
-Open the project in your preferred editor.
-
-If using VS Code:
-
-Install the Live Server extension.
-
-Run:
-
-```bash
-Open index.html with Live Server
-```
+Open `index.html` with Live Server (or any local server) to run the app.
 
 ---
 
 ## Running Tests
 
-Run all tests.
-
 ```bash
-npm test
-```
-
-Run tests in watch mode.
-
-```bash
-npm run test:watch
-```
-
-Generate a coverage report.
-
-```bash
-npm run coverage
+npm test              # run all tests
+npm run test:watch    # watch mode
+npm run coverage      # coverage report
 ```
 
 ---
 
 ## Key Functions
 
-### app.js
-
-- Task class
-- SubTask class
-- addTask()
-- displayAllTasks()
-- findTaskByTitle()
-- updateTaskPriority()
-- mergeTasks()
-- countCompletedTasks()
-- calculateAveragePriority()
-
-### utils.js
-
-- saveToStorage()
-- loadFromStorage()
-- generateRandomId()
-- formatTaskName()
-- recursiveCount()
-
-### dom.js
-
-- setupEventListeners()
-- handleAddTask()
-- displayTasks()
-- handleTaskClick()
+- **app.js:** `Task`, `SubTask`, `addTask()`, `findTaskByTitle()`, `updateTaskPriority()`, `mergeTasks()`, `countCompletedTasks()`, `calculateAveragePriority()`
+- **utils.js:** `saveToStorage()`, `loadFromStorage()`, `generateRandomId()`, `formatTaskName()`, `recursiveCount()`
+- **dom.js:** `setupEventListeners()`, `handleAddTask()`, `displayTasks()`, `handleTaskClick()`, `updateStatistics()`
 
 ---
 
 ## Testing
 
-The project includes automated tests covering:
+Covers task creation, SubTask inheritance, searching, priority updates, recursion, functional programming, error handling, and utility functions.
 
-- Task creation
-- SubTask inheritance
-- Task searching
-- Priority updates
-- Recursive functions
-- Functional programming
-- Error handling
-- Utility functions
+---
+
+## Errors Found
+
+The starter code contained 52+ intentional errors across four files:
+
+**Variables & Operators:** implicit global `taskList`, `var` instead of `let`/`const`, `==` instead of `===`, an assignment (`=`) used inside an `if` condition, no `typeof` validation.
+
+**Control Flow:** off-by-one loop in `displayAllTasks`, infinite `while` loop (missing `i++`) in `findTaskByTitle`, imperative loops used where `for...of`/array methods fit better.
+
+**Functions & OOP:** `findTaskByTitle` missing its `title` parameter, recursive `countCompletedTasks` with no base case, `Task` class missing `id` and `toggleCompletion`, `SubTask` missing `super()`, `TaskManager` missing functional methods.
+
+**Modern JavaScript:** no destructuring, string concatenation instead of template literals, no spread/rest operators, no ES6 modules.
+
+**DOM & Events:** `setupEventListeners` called but undefined, broken selectors, no null checks, no event delegation, script running before `DOMContentLoaded`, `localStorage` used without `JSON.stringify`/`parse`.
+
+**Testing:** only 2 incomplete tests, no `beforeEach`, no edge cases.
+
+## Fixes Implemented
+
+Every error above was corrected: consistent `let`/`const`, strict equality throughout, a base case and null checks on recursion, `super()` and `toggleCompletion()` added, destructuring/template literals/spread-rest implemented, real ES6 `import`/`export` across all files, `DOMContentLoaded` initialization with null-checked selectors and event delegation, JSON-based `localStorage` save/load, and a live statistics display. The Jest suite grew from 2 to 25 tests, covering classes, inheritance, recursion, array operations, and error handling, with `beforeEach` resetting state.
+
+## Test Results
+
+Running `npm test` produces **25 passing tests, 0 failures**, including edge cases (empty title, out-of-range priority, missing task ID). See `screenshots/tests-passing.png`.
+
+## Reflection
+
+The trickiest bug wasn't in the starter list: after adding `localStorage` persistence, deleting a task and reloading the page could hand a **duplicate ID** to the next new task, because `taskCounter` reset to 0 on reload while restored tasks kept their original (non-sequential) IDs. I traced it by logging IDs before/after a simulated delete-then-reload cycle, then fixed it by syncing `taskCounter` to the highest restored ID right after loading from storage.
 
 ---
 
 ## Future Improvements
 
-Possible future enhancements include:
-
-- Task due dates
-- Categories
-- Search functionality
-- Drag-and-drop task ordering
-- Dark mode
-- Task editing
-- Sorting and filtering
-- Cloud synchronization
+Due dates, categories, search, drag-and-drop ordering, dark mode, editing, sorting/filtering, cloud sync.
 
 ---
 
 ## Author
 
-Created as part of a JavaScript learning project demonstrating modern web development concepts and software engineering best practices.
+Created as part of a JavaScript learning project demonstrating modern web development and software engineering best practices.
