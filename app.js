@@ -1,156 +1,502 @@
-// Task Management Application - Starter Code with Errors
+"use strict";
 
-// Global variables (scoping issues)
-taskList = [];  // Missing var/let/const
-var taskCounter = 0;  // Should use let or const
+/*
+====================================================
+Task Management Application
+Core Application Logic
+====================================================
+*/
 
-// Task class with errors
+/*==================================================
+  Global Variables
+==================================================*/
+
+/**
+ * Stores all created tasks.
+ * Using let because tasks will be added and removed.
+ */
+let taskList = [];
+
+/**
+ * Tracks the latest task ID.
+ */
+let taskCounter = 0;
+
+/*==================================================
+  Task Class
+==================================================*/
+
+/**
+ * Represents a single task.
+ */
 class Task {
+
+    /**
+     * Create a new task.
+     * @param {string} title
+     * @param {string} description
+     * @param {number} priority
+     */
     constructor(title, description, priority) {
-        this.title = title;
-        this.description = description;
+
+        // Defensive programming
+
+        if (typeof title !== "string" || title.trim() === "") {
+            throw new Error("Task title cannot be empty.");
+        }
+
+        if (typeof description !== "string") {
+            throw new Error("Description must be a string.");
+        }
+
+        if (
+            typeof priority !== "number" ||
+            Number.isNaN(priority) ||
+            priority < 1 ||
+            priority > 5
+        ) {
+            throw new Error("Priority must be between 1 and 5.");
+        }
+
+        // Unique ID
+
+        this.id = ++taskCounter;
+
+        // Store values
+
+        this.title = title.trim();
+        this.description = description.trim();
         this.priority = priority;
         this.completed = false;
-        // Missing: id property
     }
-    
-    // Missing: method to toggle completion
-    
+
+    /**
+     * Toggle completion status.
+     */
+    toggleCompletion() {
+
+        this.completed = !this.completed;
+
+    }
+
+    /**
+     * Returns formatted task information.
+     * @returns {string}
+     */
     getInfo() {
-        // Wrong string concatenation - should use template literals
-        return "Task: " + this.title + " - Priority: " + this.priority;
+
+        return `Task: ${this.title} - Priority: ${this.priority}`;
+
     }
+
 }
 
-// Subtask class with inheritance issues
+/*==================================================
+  SubTask Class
+==================================================*/
+
+/**
+ * Represents a subtask.
+ * Inherits from Task.
+ */
 class SubTask extends Task {
+
+    /**
+     * Create a subtask.
+     * @param {string} title
+     * @param {string} description
+     * @param {number} priority
+     * @param {number} parentTask
+     */
     constructor(title, description, priority, parentTask) {
-        // Missing: super() call
+
+        super(title, description, priority);
+
+        if (
+            parentTask === undefined ||
+            parentTask === null
+        ) {
+            throw new Error("Parent task ID is required.");
+        }
+
         this.parentTask = parentTask;
+
     }
+
 }
+/*==================================================
+  Task Functions
+==================================================*/
 
-// Functions with errors
-
-// Function with no error handling
+/**
+ * Adds a new task to the task list.
+ * @param {string} title
+ * @param {string} description
+ * @param {number} priority
+ * @returns {Task|null}
+ */
 function addTask(title, description, priority) {
-    var newTask = new Task(title, description, priority);  // Should use const
-    taskList.push(newTask);
-    taskCounter++;
-    return newTask;
+
+    try {
+
+        const newTask = new Task(title, description, priority);
+
+        taskList.push(newTask);
+
+        return newTask;
+
+    } catch (error) {
+
+        console.error(`Error adding task: ${error.message}`);
+        return null;
+
+    }
+
 }
 
-// Function with incorrect loop
+/**
+ * Displays all tasks in the console.
+ */
 function displayAllTasks() {
-    // Wrong loop - should use for-of
-    for (var i = 0; i <= taskList.length; i++) {  // Off-by-one error
-        console.log(taskList[i].title);
+
+    if (taskList.length === 0) {
+        console.log("No tasks available.");
+        return;
     }
+
+    for (const task of taskList) {
+
+        console.log(task.getInfo());
+
+    }
+
 }
 
-// Function missing parameter
-function findTaskByTitle() {
-    // Missing: title parameter
-    // Wrong loop construct
-    var i = 0;
+/**
+ * Finds a task by its title.
+ * @param {string} title
+ * @returns {Task|undefined}
+ */
+function findTaskByTitle(title) {
+
+    if (typeof title !== "string") {
+        throw new TypeError("Title must be a string.");
+    }
+
+    let i = 0;
+
     while (i < taskList.length) {
-        if (taskList[i].title == title) {  // Should use ===
+
+        if (taskList[i].title === title.trim()) {
+
             return taskList[i];
+
         }
-        // Missing: i++
+
+        i++;
+
     }
+
     return undefined;
+
 }
 
-// Function with type checking issues
+/**
+ * Updates a task's priority.
+ * @param {number} taskId
+ * @param {number} newPriority
+ * @returns {boolean}
+ */
 function updateTaskPriority(taskId, newPriority) {
-    // Missing: typeof check for parameters
-    // Missing: null/undefined validation
-    
-    for (var i = 0; i < taskList.length; i++) {
-        if (taskList[i].id = taskId) {  // Wrong operator (= instead of ===)
+
+    if (
+        typeof taskId !== "number" ||
+        typeof newPriority !== "number"
+    ) {
+        throw new TypeError("Task ID and priority must be numbers.");
+    }
+
+    if (
+        newPriority < 1 ||
+        newPriority > 5
+    ) {
+        throw new RangeError("Priority must be between 1 and 5.");
+    }
+
+    for (let i = 0; i < taskList.length; i++) {
+
+        if (taskList[i].id === taskId) {
+
             taskList[i].priority = newPriority;
+
             return true;
+
         }
+
     }
+
     return false;
-}
 
-// Function that should use destructuring but doesn't
+}
+/**
+ * Returns task details.
+ * Uses object destructuring as required.
+ * @param {Task} task
+ * @returns {Object}
+ */
 function getTaskDetails(task) {
-    // Should destructure task properties
-    var title = task.title;
-    var description = task.description;
-    var priority = task.priority;
-    var completed = task.completed;
-    
+
+    if (!task || typeof task !== "object") {
+        throw new Error("A valid task object is required.");
+    }
+
+    const {
+        title,
+        description,
+        priority,
+        completed
+    } = task;
+
     return {
-        title: title,
-        description: description,
-        priority: priority,
-        completed: completed
+        title,
+        description,
+        priority,
+        completed
     };
+
 }
 
-// Function missing spread/rest operators
+/**
+ * Merges two task lists.
+ * Uses spread operator as required.
+ * @param {Task[]} list1
+ * @param {Task[]} list2
+ * @returns {Task[]}
+ */
 function mergeTasks(list1, list2) {
-    // Should use spread operator
-    var merged = [];
-    for (var i = 0; i < list1.length; i++) {
-        merged.push(list1[i]);
+
+    if (!Array.isArray(list1) || !Array.isArray(list2)) {
+        throw new TypeError("Both arguments must be arrays.");
     }
-    for (var i = 0; i < list2.length; i++) {
-        merged.push(list2[i]);
-    }
-    return merged;
+
+    return [...list1, ...list2];
+
 }
 
-// Recursive function with error
-function countCompletedTasks(tasks, index) {
-    // Missing: base case check
-    // Missing: null/undefined check
-    
+/**
+ * Recursively counts completed tasks.
+ * @param {Task[]} tasks
+ * @param {number} index
+ * @returns {number}
+ */
+function countCompletedTasks(tasks, index = 0) {
+
+    if (!Array.isArray(tasks)) {
+        return 0;
+    }
+
+    // Base case
+
+    if (index >= tasks.length) {
+        return 0;
+    }
+
     if (tasks[index].completed) {
-        return 1 + countCompletedTasks(tasks, index + 1);
-    } else {
-        return countCompletedTasks(tasks, index + 1);
+
+        return 1 + countCompletedTasks(
+            tasks,
+            index + 1
+        );
+
     }
+
+    return countCompletedTasks(
+        tasks,
+        index + 1
+    );
+
 }
 
-// Function with Math object issues
+/**
+ * Calculates the average priority.
+ * Uses Math.round().
+ * @returns {number}
+ */
 function calculateAveragePriority() {
-    var total = 0;
-    // Missing: check for empty array
-    for (var i = 0; i < taskList.length; i++) {
-        total = total + taskList[i].priority;
+
+    if (taskList.length === 0) {
+        return 0;
     }
-    // Should use Math.round or toFixed
-    return total / taskList.length;
+
+    let total = 0;
+
+    for (const task of taskList) {
+
+        total += task.priority;
+
+    }
+
+    return Math.round(
+        total / taskList.length
+    );
+
 }
 
-// Filter function with errors
+/**
+ * Returns all tasks above the minimum priority.
+ * Uses filter() as required.
+ * @param {number} minPriority
+ * @returns {Task[]}
+ */
 function getHighPriorityTasks(minPriority) {
-    var highPriority = [];
-    // Should use array methods (filter)
-    for (var i = 0; i < taskList.length; i++) {
-        if (taskList[i].priority > minPriority) {
-            highPriority.push(taskList[i]);
-        }
-    }
-    return highPriority;
-}
 
-// Object with missing methods
-var TaskManager = {
-    tasks: taskList,
-    
-    // Missing: method to add task using functional approach
-    // Missing: method using array methods (map, filter, reduce)
-    
-    getTotalTasks: function() {
-        return this.tasks.length;
+    if (typeof minPriority !== "number") {
+        throw new TypeError(
+            "Minimum priority must be a number."
+        );
     }
+
+    return taskList.filter(
+        task => task.priority > minPriority
+    );
+
+}
+/*==================================================
+  Task Manager Object
+==================================================*/
+
+const TaskManager = {
+
+    /**
+     * Reference to the application's task list.
+     */
+    tasks: taskList,
+
+    /**
+     * Adds a task using the existing addTask function.
+     * Demonstrates a functional approach.
+     * @param {string} title
+     * @param {string} description
+     * @param {number} priority
+     * @returns {Task|null}
+     */
+    add(title, description, priority) {
+
+        return addTask(title, description, priority);
+
+    },
+
+    /**
+     * Returns the total number of tasks.
+     * @returns {number}
+     */
+    getTotalTasks() {
+
+        return this.tasks.length;
+
+    },
+
+    /**
+     * Returns all completed tasks.
+     * Uses filter().
+     * @returns {Task[]}
+     */
+    getCompletedTasks() {
+
+        return this.tasks.filter(task => task.completed);
+
+    },
+
+    /**
+     * Returns all pending tasks.
+     * Uses filter().
+     * @returns {Task[]}
+     */
+    getPendingTasks() {
+
+        return this.tasks.filter(task => !task.completed);
+
+    },
+
+    /**
+     * Returns task titles.
+     * Uses map().
+     * @returns {string[]}
+     */
+    getTaskTitles() {
+
+        return this.tasks.map(task => task.title);
+
+    },
+
+    /**
+     * Calculates the total priority score.
+     * Uses reduce().
+     * @returns {number}
+     */
+    getTotalPriority() {
+
+        return this.tasks.reduce(
+
+            (total, task) => total + task.priority,
+
+            0
+
+        );
+
+    }
+
 };
 
-// Export issues - should be a module
-// Missing: proper module exports
+/*==================================================
+  Testing Utility
+==================================================*/
+
+/**
+ * Resets application state.
+ * Used only for testing.
+ */
+function resetTaskManager() {
+
+    taskList.length = 0;
+    taskCounter = 0;
+
+}
+
+/*==================================================
+  Module Exports
+==================================================*/
+
+export {
+
+    taskList,
+
+    taskCounter,
+
+    Task,
+
+    SubTask,
+
+    addTask,
+
+    displayAllTasks,
+
+    findTaskByTitle,
+
+    updateTaskPriority,
+
+    getTaskDetails,
+
+    mergeTasks,
+
+    countCompletedTasks,
+
+    calculateAveragePriority,
+
+    getHighPriorityTasks,
+
+    TaskManager,
+
+    resetTaskManager
+
+};

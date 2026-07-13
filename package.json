@@ -1,12 +1,21 @@
 {
-  "name": "task-manager-starter",
+  "name": "task-manager",
   "version": "1.0.0",
-  "description": "Task Management Application - Starter Code",
+  "description": "A modern Task Management Application built with JavaScript ES6, demonstrating object-oriented programming, DOM manipulation, local storage, unit testing, and modern JavaScript features.",
+  "type": "module",
   "main": "app.js",
   "scripts": {
-    "test": "jest"
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch",
+    "coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage"
   },
-  "keywords": ["tasks", "javascript"],
+  "keywords": [
+    "javascript",
+    "task-manager",
+    "es6",
+    "dom",
+    "jest"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
