@@ -376,20 +376,30 @@ function loadTasks() {
 
     storedTasks.forEach(task => {
 
-        const restoredTask = new Task(
+        try {
 
-            task.title,
+            const restoredTask = new Task(
 
-            task.description,
+                task.title,
 
-            task.priority
+                task.description,
 
-        );
+                task.priority
 
-        restoredTask.id = task.id;
-        restoredTask.completed = task.completed;
+            );
 
-        taskList.push(restoredTask);
+            restoredTask.id = task.id;
+            restoredTask.completed = task.completed;
+
+            taskList.push(restoredTask);
+
+        } catch (error) {
+
+            // Skip any corrupted/invalid saved task instead of
+            // crashing the whole app on load
+            console.error(`Skipped a corrupted saved task: ${error.message}`);
+
+        }
 
     });
 
