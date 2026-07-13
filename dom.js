@@ -27,6 +27,45 @@ function setupEventListeners() {
         form.addEventListener("submit", handleAddTask);
     }
 
+    // Auto-save the current task list before the page unloads
+    window.addEventListener("beforeunload", () => {
+        saveToStorage(taskList);
+    });
+
+    // Let the user press Escape to quickly clear the add-task form
+    const titleInput = document.getElementById("title");
+
+    if (titleInput) {
+
+        titleInput.addEventListener("keydown", event => {
+
+            if (event.key === "Escape") {
+                clearTaskForm();
+            }
+
+        });
+
+    }
+
+}
+
+/**
+ * Clears the add-task form inputs back to their defaults.
+ */
+function clearTaskForm() {
+
+    const titleInput = document.getElementById("title");
+    const descriptionInput = document.getElementById("description");
+    const priorityInput = document.getElementById("priority");
+
+    if (!titleInput || !descriptionInput || !priorityInput) {
+        return;
+    }
+
+    titleInput.value = "";
+    descriptionInput.value = "";
+    priorityInput.value = "1";
+
 }
 
 /*==================================================
@@ -138,9 +177,7 @@ function handleAddTask(event) {
     updateStatistics();
 
     // Clear form
-    titleInput.value = "";
-    descriptionInput.value = "";
-    priorityInput.value = "1";
+    clearTaskForm();
 
     // Return focus for easier task entry
     titleInput.focus();
