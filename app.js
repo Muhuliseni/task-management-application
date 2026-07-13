@@ -273,13 +273,13 @@ function getTaskDetails(task) {
  * @param {Task[]} list2
  * @returns {Task[]}
  */
-function mergeTasks(list1, list2) {
+function mergeTasks(...lists) {
 
-    if (!Array.isArray(list1) || !Array.isArray(list2)) {
-        throw new TypeError("Both arguments must be arrays.");
+    if (!lists.every(list => Array.isArray(list))) {
+        throw new TypeError("All arguments must be arrays.");
     }
 
-    return [...list1, ...list2];
+    return lists.flat();
 
 }
 
