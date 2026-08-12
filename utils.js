@@ -1,5 +1,7 @@
 "use strict";
 
+import { ERROR_MESSAGES } from "./constants.js";
+
 /*==================================================
  Utility Functions
 ==================================================*/
@@ -29,7 +31,7 @@ function saveToStorage(data) {
     } catch (error) {
 
         console.error(
-            `Unable to save tasks: ${error.message}`
+            `${ERROR_MESSAGES.UNABLE_TO_SAVE}: ${error.message}`
         );
 
     }
@@ -53,7 +55,7 @@ function loadFromStorage() {
     } catch (error) {
 
         console.error(
-            `Unable to load tasks: ${error.message}`
+            `${ERROR_MESSAGES.UNABLE_TO_LOAD}: ${error.message}`
         );
 
         return [];
@@ -80,6 +82,7 @@ function generateRandomId() {
  * capitalizing the first letter.
  * @param {string} name
  * @returns {string}
+ * @throws {TypeError} If name is not a string.
  */
 function formatTaskName(name) {
 
@@ -102,17 +105,14 @@ function formatTaskName(name) {
 
 /**
  * Determines whether a task is high priority.
+ * Uses optional chaining so a null/undefined task can't throw.
  * @param {Object} task
  * @returns {boolean}
  */
 function isHighPriority(task) {
 
-    if (!task || typeof task !== "object") {
-        return false;
-    }
-
-    return task.priority === 5 ||
-           task.priority === "high";
+    return task?.priority === 5 ||
+           task?.priority === "high";
 
 }
 /*==================================================
@@ -124,10 +124,16 @@ function isHighPriority(task) {
  */
 class Utility {
 
+    /**
+     * @param {string} name
+     */
     constructor(name) {
         this.name = name;
     }
 
+    /**
+     * @returns {string}
+     */
     getName() {
         return this.name;
     }
@@ -143,11 +149,18 @@ class Utility {
  */
 class AdvancedUtility extends Utility {
 
+    /**
+     * @param {string} name
+     * @param {string} version
+     */
     constructor(name, version) {
         super(name);
         this.version = version;
     }
 
+    /**
+     * @returns {string}
+     */
     getDetails() {
         return `${this.name} (v${this.version})`;
     }

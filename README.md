@@ -1,5 +1,10 @@
 # Task Management Application
 
+> **Resubmission note:** this version includes a follow-up refactor made in
+> response to assessor feedback on the first submission (78%). See
+> [IMPROVEMENTS.md](./IMPROVEMENTS.md) for the full list of changes, mapped
+> point-by-point to that feedback.
+
 ## Overview
 
 A modern JavaScript task management app demonstrating OOP, DOM manipulation, event handling, recursion, functional programming, Local Storage, JSON processing, and Jest unit testing.

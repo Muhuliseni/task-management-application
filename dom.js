@@ -1,10 +1,7 @@
 "use strict";
 
 import {
-    taskList,
-    addTask,
-    Task,
-    setTaskCounter
+    taskManager
 } from "./app.js";
 
 import {
@@ -17,7 +14,10 @@ import {
 ==================================================*/
 
 /**
- * Sets up all event listeners.
+ * Sets up every event listener the app needs: form submission,
+ * auto-save on unload, an Escape-to-clear shortcut on the title
+ * field, and delegated click/change handling on the task list
+ * (toggle complete, delete, inline priority updates).
  */
 function setupEventListeners() {
 
@@ -29,23 +29,27 @@ function setupEventListeners() {
 
     // Auto-save the current task list before the page unloads
     window.addEventListener("beforeunload", () => {
-        saveToStorage(taskList);
+        saveToStorage(taskManager.tasks);
     });
 
     // Let the user press Escape to quickly clear the add-task form
     const titleInput = document.getElementById("title");
 
-    if (titleInput) {
+    titleInput?.addEventListener("keydown", event => {
 
-        titleInput.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+            clearTaskForm();
+        }
 
-            if (event.key === "Escape") {
-                clearTaskForm();
-            }
+    });
 
-        });
+    const container = document.getElementById("task-list");
 
-    }
+    // Delegate both click (complete/delete buttons) and change
+    // (inline priority select) to the shared task-list container,
+    // rather than attaching a listener per task.
+    container?.addEventListener("click", handleTaskClick);
+    container?.addEventListener("change", handlePriorityChange);
 
 }
 
@@ -86,33 +90,17 @@ document.addEventListener(
 
         updateStatistics();
 
-        const container = document.getElementById("task-list");
-
-        if (container) {
-
-            container.addEventListener(
-
-                "click",
-
-                handleTaskClick
-
-            );
-
-        }
-
     }
 
 );
 /**
  * Handles adding a new task.
- * @param {Event} event
+ * @param {Event} [event]
  */
 function handleAddTask(event) {
 
     // Prevent page refresh if called from a form
-    if (event) {
-        event.preventDefault();
-    }
+    event?.preventDefault();
 
     // Select inputs
     const titleInput = document.getElementById("title");
@@ -129,9 +117,9 @@ function handleAddTask(event) {
     }
 
     // Read values
-    const title = titleInput.value.trim();
-    const description = descriptionInput.value.trim();
-    const priority = Number(priorityInput.value);
+    const title = titleInput.value?.trim() ?? "";
+    const description = descriptionInput.value?.trim() ?? "";
+    const priority = Number(priorityInput.value ?? NaN);
 
     // Validation
     if (title === "") {
@@ -155,7 +143,7 @@ function handleAddTask(event) {
     }
 
     // Add task
-    const newTask = addTask(
+    const newTask = taskManager.add(
         title,
         description,
         priority
@@ -170,7 +158,7 @@ function handleAddTask(event) {
     }
 
     // Save to storage
-    saveToStorage(taskList);
+    saveToStorage(taskManager.tasks);
 
     // Refresh UI
     displayTasks();
@@ -183,6 +171,28 @@ function handleAddTask(event) {
     titleInput.focus();
 
 }
+/**
+ * Builds the markup for a single task's priority <select>,
+ * with the task's current priority pre-selected.
+ * @param {{ id: number, priority: number }} task
+ * @returns {string}
+ */
+function buildPrioritySelect(task) {
+
+    const options = [1, 2, 3, 4, 5].map(value => `
+                        <option value="${value}" ${value === task.priority ? "selected" : ""}>
+                            ${value}
+                        </option>
+    `).join("");
+
+    return `
+                    <select class="priority-select" data-id="${task.id}" aria-label="Change priority for ${task.title}">
+                        ${options}
+                    </select>
+    `;
+
+}
+
 /**
  * Displays all tasks in the DOM.
  */
@@ -198,11 +208,13 @@ function displayTasks() {
 
     }
 
+    const tasks = taskManager.tasks;
+
     // Clear existing tasks
     container.innerHTML = "";
 
     // Display message if there are no tasks
-    if (taskList.length === 0) {
+    if (tasks.length === 0) {
 
         container.innerHTML = `
             <div class="empty-state">
@@ -215,7 +227,7 @@ function displayTasks() {
     }
 
     // Build task cards
-    taskList.forEach(task => {
+    tasks.forEach(task => {
 
         container.insertAdjacentHTML(
 
@@ -230,7 +242,10 @@ function displayTasks() {
 
                 <p><strong>ID:</strong> ${task.id}</p>
 
-                <p><strong>Priority:</strong> ${task.priority}</p>
+                <p>
+                    <strong>Priority:</strong> ${task.priority}
+                    ${buildPrioritySelect(task)}
+                </p>
 
                 <p>
                     <strong>Status:</strong>
@@ -263,7 +278,7 @@ function displayTasks() {
 }
 /**
  * Updates the task statistics section in the DOM.
- * Uses TaskManager's functional methods to compute values.
+ * Uses TaskManager's getSummary() to compute values in one place.
  */
 function updateStatistics() {
 
@@ -277,9 +292,7 @@ function updateStatistics() {
         return;
     }
 
-    const total = taskList.length;
-    const completed = taskList.filter(task => task.completed).length;
-    const pending = total - completed;
+    const { total, completed, pending } = taskManager.getSummary();
 
     totalEl.textContent = total;
     completedEl.textContent = completed;
@@ -289,36 +302,36 @@ function updateStatistics() {
 
 /**
  * Handles task button clicks using event delegation.
+ * Uses closest() + optional chaining so a click on a nested
+ * element (an icon inside a button, say) still resolves to the
+ * right data-id instead of silently doing nothing.
  * @param {Event} event
  */
 function handleTaskClick(event) {
 
-    const target = event.target;
+    const target = event.target?.closest("[data-id]");
 
     if (!target) {
         return;
     }
 
-    const taskId = Number(target.dataset.id);
+    const taskId = Number(target.dataset?.id ?? NaN);
 
     if (Number.isNaN(taskId)) {
-        return;
-    }
-
-    // Find the task
-    const task = taskList.find(task => task.id === taskId);
-
-    if (!task) {
-        console.error("Task not found.");
         return;
     }
 
     // Toggle completion
     if (target.classList.contains("complete-btn")) {
 
-        task.toggleCompletion();
+        const toggled = taskManager.toggleCompletion(taskId);
 
-        saveToStorage(taskList);
+        if (!toggled) {
+            console.error("Task not found.");
+            return;
+        }
+
+        saveToStorage(taskManager.tasks);
 
         displayTasks();
         updateStatistics();
@@ -330,22 +343,56 @@ function handleTaskClick(event) {
     // Delete task
     if (target.classList.contains("delete-btn")) {
 
-        const index = taskList.findIndex(
-            task => task.id === taskId
-        );
+        const removed = taskManager.remove(taskId);
 
-        if (index !== -1) {
+        if (removed) {
 
-            taskList.splice(index, 1);
-
-            saveToStorage(taskList);
+            saveToStorage(taskManager.tasks);
 
             displayTasks();
             updateStatistics();
 
+        } else {
+
+            console.error("Task not found.");
+
         }
 
     }
+
+}
+
+/**
+ * Handles inline priority changes from a task card's priority
+ * <select>, delegated from the task list container.
+ * @param {Event} event
+ */
+function handlePriorityChange(event) {
+
+    const target = event.target?.closest(".priority-select");
+
+    if (!target) {
+        return;
+    }
+
+    const taskId = Number(target.dataset?.id ?? NaN);
+    const newPriority = Number(target.value ?? NaN);
+
+    if (Number.isNaN(taskId) || Number.isNaN(newPriority)) {
+        return;
+    }
+
+    const updated = taskManager.updatePriority(taskId, newPriority);
+
+    if (!updated) {
+        console.error("Task not found.");
+        return;
+    }
+
+    saveToStorage(taskManager.tasks);
+
+    displayTasks();
+    updateStatistics();
 
 }
 /*==================================================
@@ -357,59 +404,43 @@ function handleTaskClick(event) {
  */
 function saveTasks() {
 
-    saveToStorage(taskList);
+    saveToStorage(taskManager.tasks);
 
 }
 
 /**
- * Loads tasks from localStorage.
+ * Loads tasks from localStorage into the shared task manager.
  */
 function loadTasks() {
 
-    const storedTasks = loadFromStorage();
-
-    if (!Array.isArray(storedTasks)) {
-        return;
-    }
-
-    taskList.length = 0;
-
-    storedTasks.forEach(task => {
-
-        try {
-
-            const restoredTask = new Task(
-
-                task.title,
-
-                task.description,
-
-                task.priority
-
-            );
-
-            restoredTask.id = task.id;
-            restoredTask.completed = task.completed;
-
-            taskList.push(restoredTask);
-
-        } catch (error) {
-
-            // Skip any corrupted/invalid saved task instead of
-            // crashing the whole app on load
-            console.error(`Skipped a corrupted saved task: ${error.message}`);
-
-        }
-
-    });
-
-    // Prevent duplicate ids: make sure the counter is at least
-    // as high as the largest id we just restored
-    const highestId = taskList.reduce(
-        (max, task) => Math.max(max, task.id),
-        0
-    );
-
-    setTaskCounter(highestId);
+    taskManager.restore(loadFromStorage());
 
 }
+
+/*==================================================
+  Module Exports
+  (harmless in the browser; lets tests import and drive
+  these functions directly)
+==================================================*/
+
+export {
+
+    setupEventListeners,
+
+    clearTaskForm,
+
+    handleAddTask,
+
+    displayTasks,
+
+    updateStatistics,
+
+    handleTaskClick,
+
+    handlePriorityChange,
+
+    saveTasks,
+
+    loadTasks
+
+};

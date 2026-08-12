@@ -7,20 +7,7 @@ Core Application Logic
 ====================================================
 */
 
-/*==================================================
-  Global Variables
-==================================================*/
-
-/**
- * Stores all created tasks.
- * Using let because tasks will be added and removed.
- */
-let taskList = [];
-
-/**
- * Tracks the latest task ID.
- */
-let taskCounter = 0;
+import { PRIORITY_MIN, PRIORITY_MAX, ERROR_MESSAGES } from "./constants.js";
 
 /*==================================================
   Task Class
@@ -32,35 +19,43 @@ let taskCounter = 0;
 class Task {
 
     /**
+     * Auto-incrementing id counter, private to the class itself
+     * (rather than a mutable global variable) so nothing outside
+     * Task can tamper with id generation.
+     */
+    static #idCounter = 0;
+
+    /**
      * Create a new task.
      * @param {string} title
      * @param {string} description
      * @param {number} priority
+     * @throws {Error} If title, description, or priority are invalid.
      */
     constructor(title, description, priority) {
 
         // Defensive programming
 
         if (typeof title !== "string" || title.trim() === "") {
-            throw new Error("Task title cannot be empty.");
+            throw new Error(ERROR_MESSAGES.EMPTY_TITLE);
         }
 
         if (typeof description !== "string") {
-            throw new Error("Description must be a string.");
+            throw new Error(ERROR_MESSAGES.INVALID_DESCRIPTION);
         }
 
         if (
             typeof priority !== "number" ||
             Number.isNaN(priority) ||
-            priority < 1 ||
-            priority > 5
+            priority < PRIORITY_MIN ||
+            priority > PRIORITY_MAX
         ) {
-            throw new Error("Priority must be between 1 and 5.");
+            throw new Error(ERROR_MESSAGES.INVALID_PRIORITY);
         }
 
         // Unique ID
 
-        this.id = ++taskCounter;
+        this.id = Task.#nextId();
 
         // Store values
 
@@ -89,6 +84,47 @@ class Task {
 
     }
 
+    /**
+     * Hands out the next sequential id.
+     * @returns {number}
+     */
+    static #nextId() {
+
+        Task.#idCounter += 1;
+
+        return Task.#idCounter;
+
+    }
+
+    /**
+     * Resets the id counter back to zero.
+     * Used only for testing / explicit app resets.
+     */
+    static resetIdCounter() {
+
+        Task.#idCounter = 0;
+
+    }
+
+    /**
+     * Ensures the id counter is never lower than an existing task's
+     * id. Used after restoring tasks from storage, where the counter
+     * would otherwise reset to 0 on every page load and could hand
+     * out a duplicate id to the next new task.
+     * @param {number} minimumValue
+     */
+    static raiseIdCounterFloor(minimumValue) {
+
+        if (typeof minimumValue !== "number" || Number.isNaN(minimumValue)) {
+            return;
+        }
+
+        if (minimumValue > Task.#idCounter) {
+            Task.#idCounter = minimumValue;
+        }
+
+    }
+
 }
 
 /*==================================================
@@ -107,6 +143,7 @@ class SubTask extends Task {
      * @param {string} description
      * @param {number} priority
      * @param {number} parentTask
+     * @throws {Error} If parentTask is missing.
      */
     constructor(title, description, priority, parentTask) {
 
@@ -116,7 +153,7 @@ class SubTask extends Task {
             parentTask === undefined ||
             parentTask === null
         ) {
-            throw new Error("Parent task ID is required.");
+            throw new Error(ERROR_MESSAGES.MISSING_PARENT);
         }
 
         this.parentTask = parentTask;
@@ -124,130 +161,125 @@ class SubTask extends Task {
     }
 
 }
+
 /*==================================================
-  Task Functions
+  Higher-Order Utility
 ==================================================*/
 
 /**
- * Adds a new task to the task list.
- * @param {string} title
- * @param {string} description
- * @param {number} priority
- * @returns {Task|null}
+ * Higher-order function: takes a predicate and returns a reusable,
+ * named filter function for task arrays. This keeps the "what am I
+ * filtering for" decision (the predicate) separate from the "how do
+ * I filter an array of tasks" mechanics (the returned function),
+ * and lets both be composed and unit-tested independently.
+ * @param {(task: Task) => boolean} predicate
+ * @returns {(tasks: Task[]) => Task[]}
+ * @throws {TypeError} If predicate is not a function.
  */
-function addTask(title, description, priority) {
+function createTaskFilter(predicate) {
 
-    try {
-
-        const newTask = new Task(title, description, priority);
-
-        taskList.push(newTask);
-
-        return newTask;
-
-    } catch (error) {
-
-        console.error(`Error adding task: ${error.message}`);
-        return null;
-
+    if (typeof predicate !== "function") {
+        throw new TypeError(ERROR_MESSAGES.PREDICATE_REQUIRED);
     }
+
+    return function filterTasks(tasks) {
+
+        if (!Array.isArray(tasks)) {
+            throw new TypeError(ERROR_MESSAGES.INVALID_TASKS_ARRAY);
+        }
+
+        return tasks.filter(predicate);
+
+    };
 
 }
 
-/**
- * Displays all tasks in the console.
- */
-function displayAllTasks() {
+/** Filter for completed tasks, built from createTaskFilter(). */
+const filterCompletedTasks = createTaskFilter(task => task.completed);
 
-    if (taskList.length === 0) {
-        console.log("No tasks available.");
-        return;
-    }
+/** Filter for pending (not completed) tasks, built from createTaskFilter(). */
+const filterPendingTasks = createTaskFilter(task => !task.completed);
 
-    for (const task of taskList) {
-
-        console.log(task.getInfo());
-
-    }
-
-}
+/*==================================================
+  Task Functions (pure - operate on a passed-in array)
+==================================================*/
 
 /**
  * Finds a task by its title.
+ * @param {Task[]} tasks
  * @param {string} title
  * @returns {Task|undefined}
+ * @throws {TypeError} If tasks or title are the wrong type.
  */
-function findTaskByTitle(title) {
+function findTaskByTitle(tasks, title) {
+
+    if (!Array.isArray(tasks)) {
+        throw new TypeError(ERROR_MESSAGES.INVALID_TASKS_ARRAY);
+    }
 
     if (typeof title !== "string") {
-        throw new TypeError("Title must be a string.");
+        throw new TypeError(ERROR_MESSAGES.INVALID_TITLE_TYPE);
     }
 
-    let i = 0;
+    const trimmedTitle = title.trim();
 
-    while (i < taskList.length) {
-
-        if (taskList[i].title === title.trim()) {
-
-            return taskList[i];
-
-        }
-
-        i++;
-
-    }
-
-    return undefined;
+    return tasks.find(task => task.title === trimmedTitle);
 
 }
 
 /**
- * Updates a task's priority.
+ * Updates a task's priority in place.
+ * Uses Array.prototype.find instead of an index-based loop.
+ * @param {Task[]} tasks
  * @param {number} taskId
  * @param {number} newPriority
- * @returns {boolean}
+ * @returns {boolean} Whether a matching task was found and updated.
+ * @throws {TypeError} If tasks, taskId, or newPriority are the wrong type.
+ * @throws {RangeError} If newPriority is out of range.
  */
-function updateTaskPriority(taskId, newPriority) {
+function updateTaskPriority(tasks, taskId, newPriority) {
+
+    if (!Array.isArray(tasks)) {
+        throw new TypeError(ERROR_MESSAGES.INVALID_TASKS_ARRAY);
+    }
 
     if (
         typeof taskId !== "number" ||
         typeof newPriority !== "number"
     ) {
-        throw new TypeError("Task ID and priority must be numbers.");
+        throw new TypeError(ERROR_MESSAGES.INVALID_ID_OR_PRIORITY_TYPE);
     }
 
     if (
-        newPriority < 1 ||
-        newPriority > 5
+        newPriority < PRIORITY_MIN ||
+        newPriority > PRIORITY_MAX
     ) {
-        throw new RangeError("Priority must be between 1 and 5.");
+        throw new RangeError(ERROR_MESSAGES.INVALID_PRIORITY);
     }
 
-    for (let i = 0; i < taskList.length; i++) {
+    const task = tasks.find(candidate => candidate.id === taskId);
 
-        if (taskList[i].id === taskId) {
-
-            taskList[i].priority = newPriority;
-
-            return true;
-
-        }
-
+    if (!task) {
+        return false;
     }
 
-    return false;
+    task.priority = newPriority;
+
+    return true;
 
 }
+
 /**
  * Returns task details.
  * Uses object destructuring as required.
  * @param {Task} task
  * @returns {Object}
+ * @throws {TypeError} If task is not a valid object.
  */
 function getTaskDetails(task) {
 
     if (!task || typeof task !== "object") {
-        throw new Error("A valid task object is required.");
+        throw new TypeError(ERROR_MESSAGES.INVALID_TASK_OBJECT);
     }
 
     const {
@@ -267,16 +299,16 @@ function getTaskDetails(task) {
 }
 
 /**
- * Merges two task lists.
- * Uses spread operator as required.
- * @param {Task[]} list1
- * @param {Task[]} list2
+ * Merges any number of task lists.
+ * Uses a rest parameter to collect array arguments, then flattens.
+ * @param {...Task[]} lists
  * @returns {Task[]}
+ * @throws {TypeError} If any argument is not an array.
  */
 function mergeTasks(...lists) {
 
     if (!lists.every(list => Array.isArray(list))) {
-        throw new TypeError("All arguments must be arrays.");
+        throw new TypeError(ERROR_MESSAGES.INVALID_LISTS);
     }
 
     return lists.flat();
@@ -318,59 +350,66 @@ function countCompletedTasks(tasks, index = 0) {
 }
 
 /**
- * Calculates the average priority.
- * Uses Math.round().
+ * Calculates the average priority of a task list.
+ * Takes the list as a parameter rather than reading shared state,
+ * so it can be reused (and tested) against any array of tasks.
+ * @param {Task[]} tasks
  * @returns {number}
+ * @throws {TypeError} If tasks is not an array.
  */
-function calculateAveragePriority() {
+function calculateAveragePriority(tasks) {
 
-    if (taskList.length === 0) {
+    if (!Array.isArray(tasks)) {
+        throw new TypeError(ERROR_MESSAGES.INVALID_TASKS_ARRAY);
+    }
+
+    if (tasks.length === 0) {
         return 0;
     }
 
-    let total = 0;
-
-    for (const task of taskList) {
-
-        total += task.priority;
-
-    }
-
-    return Math.round(
-        total / taskList.length
+    const total = tasks.reduce(
+        (sum, task) => sum + task.priority,
+        0
     );
+
+    return Math.round(total / tasks.length);
 
 }
 
 /**
  * Returns all tasks above the minimum priority.
- * Uses filter() as required.
+ * Takes the list as a parameter (rather than reading shared state)
+ * and is built on top of the createTaskFilter higher-order function.
+ * @param {Task[]} tasks
  * @param {number} minPriority
  * @returns {Task[]}
+ * @throws {TypeError} If tasks or minPriority are the wrong type.
  */
-function getHighPriorityTasks(minPriority) {
+function getHighPriorityTasks(tasks, minPriority) {
 
     if (typeof minPriority !== "number") {
-        throw new TypeError(
-            "Minimum priority must be a number."
-        );
+        throw new TypeError(ERROR_MESSAGES.INVALID_MIN_PRIORITY);
     }
 
-    return taskList.filter(
+    const isAboveMinPriority = createTaskFilter(
         task => task.priority > minPriority
     );
 
+    return isAboveMinPriority(tasks);
+
 }
+
 /**
  * Returns a shallow copy of a task list.
  * Demonstrates the array spread operator.
  * @param {Task[]} tasks
  * @returns {Task[]}
+ * @throws {TypeError} If tasks is not an array.
  */
 function cloneTaskList(tasks) {
 
     if (!Array.isArray(tasks)) {
-        throw new TypeError("cloneTaskList expects an array.");
+        throw new TypeError(ERROR_MESSAGES.INVALID_TASKS_ARRAY);
     }
 
     return [...tasks];
@@ -383,11 +422,12 @@ function cloneTaskList(tasks) {
  * @param {Task} task
  * @param {Object} overrides
  * @returns {Object}
+ * @throws {TypeError} If task is not a valid object.
  */
 function duplicateTaskWithChanges(task, overrides = {}) {
 
     if (!task || typeof task !== "object") {
-        throw new TypeError("A valid task object is required.");
+        throw new TypeError(ERROR_MESSAGES.INVALID_TASK_OBJECT);
     }
 
     return {
@@ -402,11 +442,12 @@ function duplicateTaskWithChanges(task, overrides = {}) {
  * Demonstrates array destructuring with a rest pattern.
  * @param {Task[]} tasks
  * @returns {{ firstTask: Task|undefined, remainingTasks: Task[] }}
+ * @throws {TypeError} If tasks is not an array.
  */
 function splitFirstTask(tasks) {
 
     if (!Array.isArray(tasks)) {
-        throw new TypeError("splitFirstTask expects an array.");
+        throw new TypeError(ERROR_MESSAGES.INVALID_TASKS_ARRAY);
     }
 
     const [firstTask, ...remainingTasks] = tasks;
@@ -420,135 +461,347 @@ function splitFirstTask(tasks) {
  * on the function parameter itself.
  * @param {{ tasks: Task[] }} manager
  * @returns {number}
+ * @throws {TypeError} If manager doesn't have a tasks array.
  */
-function getManagerTaskCount({ tasks }) {
+function getManagerTaskCount({ tasks } = {}) {
 
     if (!Array.isArray(tasks)) {
-        throw new TypeError("Expected an object with a tasks array.");
+        throw new TypeError(ERROR_MESSAGES.MANAGER_SHAPE);
     }
 
     return tasks.length;
 
 }
 
+/**
+ * Picks a subset of fields off a task-like object.
+ * Demonstrates a rest parameter collecting individual string
+ * arguments (as opposed to mergeTasks, whose rest parameter
+ * collects array arguments).
+ * @param {Object} task
+ * @param {...string} fields
+ * @returns {Object}
+ * @throws {TypeError} If task is invalid or no fields are given.
+ */
+function pickTaskFields(task, ...fields) {
+
+    if (!task || typeof task !== "object") {
+        throw new TypeError(ERROR_MESSAGES.INVALID_TASK_OBJECT);
+    }
+
+    if (fields.length === 0) {
+        throw new TypeError(ERROR_MESSAGES.FIELDS_REQUIRED);
+    }
+
+    return fields.reduce((picked, field) => {
+
+        if (field in task) {
+            picked[field] = task[field];
+        }
+
+        return picked;
+
+    }, {});
+
+}
+
 /*==================================================
-  Task Manager Object
+  Task Manager Class
 ==================================================*/
 
-const TaskManager = {
+/**
+ * Owns the application's task collection.
+ * State (#tasks) is a private field: nothing outside this class
+ * can reach in and mutate the array directly, only through the
+ * methods below - each of which delegates to the pure functions
+ * above, passing in the private array explicitly.
+ */
+class TaskManager {
+
+    /** @type {Task[]} */
+    #tasks = [];
 
     /**
-     * Reference to the application's task list.
-     */
-    tasks: taskList,
-
-    /**
-     * Adds a task using the existing addTask function.
-     * Demonstrates a functional approach.
+     * Creates and stores a new task.
      * @param {string} title
      * @param {string} description
      * @param {number} priority
-     * @returns {Task|null}
+     * @returns {Task|null} The created task, or null if creation failed.
      */
     add(title, description, priority) {
 
-        return addTask(title, description, priority);
+        try {
 
-    },
+            const newTask = new Task(title, description, priority);
+
+            this.#tasks.push(newTask);
+
+            return newTask;
+
+        } catch (error) {
+
+            console.error(`${ERROR_MESSAGES.ADD_TASK_FAILED}: ${error.message}`);
+
+            return null;
+
+        }
+
+    }
 
     /**
-     * Returns the total number of tasks.
+     * Removes a task by id.
+     * @param {number} taskId
+     * @returns {boolean} Whether a task was found and removed.
+     */
+    remove(taskId) {
+
+        const index = this.#tasks.findIndex(task => task.id === taskId);
+
+        if (index === -1) {
+            return false;
+        }
+
+        this.#tasks.splice(index, 1);
+
+        return true;
+
+    }
+
+    /**
+     * Finds a task by title.
+     * @param {string} title
+     * @returns {Task|undefined}
+     */
+    findByTitle(title) {
+
+        return findTaskByTitle(this.#tasks, title);
+
+    }
+
+    /**
+     * Finds a task by id.
+     * @param {number} taskId
+     * @returns {Task|undefined}
+     */
+    findById(taskId) {
+
+        return this.#tasks.find(task => task.id === taskId);
+
+    }
+
+    /**
+     * Updates a task's priority.
+     * @param {number} taskId
+     * @param {number} newPriority
+     * @returns {boolean}
+     */
+    updatePriority(taskId, newPriority) {
+
+        return updateTaskPriority(this.#tasks, taskId, newPriority);
+
+    }
+
+    /**
+     * Toggles a task's completion status by id.
+     * @param {number} taskId
+     * @returns {boolean} Whether a matching task was found.
+     */
+    toggleCompletion(taskId) {
+
+        const task = this.findById(taskId);
+
+        if (!task) {
+            return false;
+        }
+
+        task.toggleCompletion();
+
+        return true;
+
+    }
+
+    /**
+     * A defensive, read-only copy of the current tasks.
+     * Exposed as a getter (not a plain public field) so external
+     * code can read the state but never obtains a reference it
+     * could mutate the private array through.
+     * @returns {Task[]}
+     */
+    get tasks() {
+
+        return [...this.#tasks];
+
+    }
+
+    /**
+     * Total number of tasks currently held.
      * @returns {number}
      */
-    getTotalTasks() {
+    get totalTasks() {
 
-        return this.tasks.length;
+        return this.#tasks.length;
 
-    },
+    }
 
     /**
-     * Returns all completed tasks.
-     * Uses filter().
+     * All completed tasks.
      * @returns {Task[]}
      */
     getCompletedTasks() {
 
-        return this.tasks.filter(task => task.completed);
+        return filterCompletedTasks(this.#tasks);
 
-    },
+    }
 
     /**
-     * Returns all pending tasks.
-     * Uses filter().
+     * All pending (not completed) tasks.
      * @returns {Task[]}
      */
     getPendingTasks() {
 
-        return this.tasks.filter(task => !task.completed);
+        return filterPendingTasks(this.#tasks);
 
-    },
+    }
 
     /**
-     * Returns task titles.
-     * Uses map().
+     * Titles of every task currently held.
      * @returns {string[]}
      */
     getTaskTitles() {
 
-        return this.tasks.map(task => task.title);
+        return this.#tasks.map(task => task.title);
 
-    },
+    }
 
     /**
-     * Calculates the total priority score.
-     * Uses reduce().
+     * Sum of every task's priority.
      * @returns {number}
      */
     getTotalPriority() {
 
-        return this.tasks.reduce(
-
+        return this.#tasks.reduce(
             (total, task) => total + task.priority,
-
             0
-
         );
 
     }
 
-};
+    /**
+     * Average priority across every task.
+     * @returns {number}
+     */
+    getAveragePriority() {
 
-/*==================================================
-  Testing Utility
-==================================================*/
+        return calculateAveragePriority(this.#tasks);
 
-/**
- * Resets application state.
- * Used only for testing.
- */
-function resetTaskManager() {
+    }
 
-    taskList.length = 0;
-    taskCounter = 0;
+    /**
+     * All tasks above the given minimum priority.
+     * @param {number} minPriority
+     * @returns {Task[]}
+     */
+    getHighPriorityTasks(minPriority) {
+
+        return getHighPriorityTasks(this.#tasks, minPriority);
+
+    }
+
+    /**
+     * A snapshot summary of the manager's current state.
+     * Demonstrates building a new object with the spread operator
+     * on top of a base stats object.
+     * @returns {{ total: number, completed: number, pending: number, averagePriority: number, generatedAt: string }}
+     */
+    getSummary() {
+
+        const baseStats = {
+            total: this.totalTasks,
+            completed: this.getCompletedTasks().length,
+            pending: this.getPendingTasks().length,
+            averagePriority: this.getAveragePriority()
+        };
+
+        return {
+            ...baseStats,
+            generatedAt: new Date().toISOString()
+        };
+
+    }
+
+    /**
+     * Replaces the current tasks with ones restored from storage,
+     * skipping any that fail validation instead of crashing the
+     * whole app on load.
+     * @param {Array} savedTasks
+     */
+    restore(savedTasks) {
+
+        if (!Array.isArray(savedTasks)) {
+            return;
+        }
+
+        this.#tasks.length = 0;
+
+        savedTasks.forEach(saved => {
+
+            try {
+
+                const restoredTask = new Task(
+                    saved?.title,
+                    saved?.description,
+                    saved?.priority
+                );
+
+                restoredTask.id = saved.id;
+                restoredTask.completed = Boolean(saved.completed);
+
+                this.#tasks.push(restoredTask);
+
+            } catch (error) {
+
+                console.error(`${ERROR_MESSAGES.SKIPPED_CORRUPT_TASK}: ${error.message}`);
+
+            }
+
+        });
+
+        // Prevent duplicate ids: make sure the counter is at least
+        // as high as the largest id we just restored.
+        const highestId = this.#tasks.reduce(
+            (max, task) => Math.max(max, task.id),
+            0
+        );
+
+        Task.raiseIdCounterFloor(highestId);
+
+    }
+
+    /**
+     * Clears all tasks and resets id generation.
+     * Used for testing / explicit app resets.
+     */
+    reset() {
+
+        this.#tasks.length = 0;
+
+        Task.resetIdCounter();
+
+    }
 
 }
 
+/** The application's single, shared TaskManager instance. */
+const taskManager = new TaskManager();
+
 /**
- * Syncs taskCounter so it is never lower than an existing
- * task's id. Used after restoring tasks from storage, where
- * taskCounter would otherwise reset to 0 on every page load
- * and could hand out a duplicate id to the next new task.
- * @param {number} minimumValue
+ * Resets the shared task manager.
+ * Kept as a standalone function (delegating to taskManager.reset())
+ * for convenience in tests.
  */
-function setTaskCounter(minimumValue) {
+function resetTaskManager() {
 
-    if (typeof minimumValue !== "number" || Number.isNaN(minimumValue)) {
-        return;
-    }
-
-    if (minimumValue > taskCounter) {
-        taskCounter = minimumValue;
-    }
+    taskManager.reset();
 
 }
 
@@ -558,17 +811,17 @@ function setTaskCounter(minimumValue) {
 
 export {
 
-    taskList,
-
-    taskCounter,
-
     Task,
 
     SubTask,
 
-    addTask,
+    taskManager,
 
-    displayAllTasks,
+    createTaskFilter,
+
+    filterCompletedTasks,
+
+    filterPendingTasks,
 
     findTaskByTitle,
 
@@ -592,10 +845,10 @@ export {
 
     getManagerTaskCount,
 
+    pickTaskFields,
+
     TaskManager,
 
-    resetTaskManager,
-
-    setTaskCounter
+    resetTaskManager
 
 };
